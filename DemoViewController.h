@@ -8,7 +8,9 @@
 
 @class MGScrollView, MGBox;
 
-@interface DemoViewController : UIViewController
+@interface DemoViewController : UIViewController {
+    MGBox* colorGrid;
+}
 
 @property (nonatomic, weak) IBOutlet MGScrollView *scroller;
 
@@ -18,5 +20,7 @@
 - (BOOL)allPhotosLoaded;
 -(void)introScreen;
 -(void)loadMoreBoxes:(int)boxes;
+
+-(UIColor *)coreColor;
 
 @end

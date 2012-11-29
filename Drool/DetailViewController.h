@@ -16,6 +16,7 @@
     UILabel *artistNameLabel;
     UILabel *howtocloseLabel;
     UILabel *titleLabel;
+    NSArray *commentArray;
 }
 @property NSDictionary *datadic;
 

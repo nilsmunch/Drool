@@ -64,6 +64,10 @@
   return boxes;
 }
 
+- (void)tapped {
+    DLog(@"TAPPED");
+    }
+
 - (UIEdgeInsets)margin {
   return UIEdgeInsetsMake(self.topMargin, self.leftMargin, self.bottomMargin,
       self.rightMargin);

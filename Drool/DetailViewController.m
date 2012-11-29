@@ -10,8 +10,12 @@
 #import "AFNetworkActivityIndicatorManager.h"
 #import "SCAppDelegate.h"
 #import "AFNetworking.h"
+#import "AFHTTPClient.h"
+#import "AFJSONRequestOperation.h"
+#import "DemoViewController.h"
 
 static DetailViewController *view;
+static AFHTTPClient *manager;
 
 @implementation DetailViewController
 
@@ -30,8 +34,18 @@ static DetailViewController *view;
 }
 
 -(void)fillData {
+    [containerView_ setContentOffset:CGPointZero animated:YES];
+
+    while ([self.view viewWithTag:999]) {
+        [[self.view viewWithTag:999] removeFromSuperview];
+    }
     titleLabel.text = [datadic objectForKey:@"title"];
     artistNameLabel.text = [[datadic objectForKey:@"player"] objectForKey:@"name"];
+    
+    [self performSelector:@selector(hideInfoview) withObject:nil afterDelay:4.0];
+    
+    containerView_.backgroundColor = [[DemoViewController sharedListView] coreColor];
+    
 }
 
 -(void)setPrePhoto:(UIImage *)image {
@@ -54,6 +68,7 @@ static DetailViewController *view;
         dispatch_async(dispatch_get_main_queue(), ^{
             catImageView.image = [UIImage imageWithContentsOfFile:cacheFile];
         });
+        [self loadComments];
         return;
     }
     [[AFNetworkActivityIndicatorManager sharedManager] incrementActivityCount];
@@ -68,6 +83,7 @@ static DetailViewController *view;
         catImageView.clipsToBounds = YES;
         catImageView.contentMode = UIViewContentModeScaleAspectFit;
         catImageView.image = image;
+        [self loadComments];
         //catImageView.frame = CGRectMake(0, 0, image.size.width, image.size.height);
     });
 }
@@ -87,6 +103,13 @@ static DetailViewController *view;
     }];
      */
 }
+-(NSString *)stringByStrippingHTML:(NSString *)s {
+    NSRange r;
+    while ((r = [s rangeOfString:@"<[^>]+>" options:NSRegularExpressionSearch]).location != NSNotFound)
+        s = [s stringByReplacingCharactersInRange:r withString:@""];
+    return s;
+}
+
 
 - (void)viewDidLoad
 {
@@ -98,14 +121,13 @@ static DetailViewController *view;
     containerView_.backgroundColor = [UIColor darkGrayColor];
     [self.view addSubview:containerView_];
     
-    containerView_.contentSize = CGSizeMake(320, 900);
     
     titleLabel = [[UILabel alloc] initWithFrame:CGRectMake(0, 321, self.view.frame.size.width, 50)];
     titleLabel.backgroundColor  = [UIColor colorWithWhite:1 alpha:0.6];
     titleLabel.textAlignment = UITextAlignmentCenter;
     [containerView_ addSubview:titleLabel];
     
-    artistNameLabel = [[UILabel alloc] initWithFrame:CGRectMake(0, 321+titleLabel.frame.size.height, self.view.frame.size.width, 25)];
+    artistNameLabel = [[UILabel alloc] initWithFrame:CGRectMake(0, 321+titleLabel.frame.size.height+3, self.view.frame.size.width, 25)];
     artistNameLabel.backgroundColor  = [UIColor colorWithWhite:1 alpha:0.4];
     artistNameLabel.textColor = [UIColor blackColor];
     artistNameLabel.font = [UIFont boldSystemFontOfSize:12];
@@ -146,6 +168,12 @@ static DetailViewController *view;
     // Dispose of any resources that can be recreated.
 }
 
+-(void)hideInfoview {
+    [UIView animateWithDuration:2.0 animations:^{
+        howtocloseLabel.alpha = 0.0;
+    }];
+}
+
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma mark - PSPushPopPressViewDelegate
@@ -173,6 +201,64 @@ static DetailViewController *view;
         }
     }
 }
+
+
+-(void)loadComments {
+    int active = [[AFNetworkActivityIndicatorManager sharedManager] activityCount];
+    if (active > 0 ) {return;}
+    if (manager == nil) {
+        manager = [AFHTTPClient clientWithBaseURL:[NSURL URLWithString:@"http://api.dribbble.com/shots/"]];
+    }
+    
+    NSMutableURLRequest *req =  [manager requestWithMethod:@"GET" path:[NSString stringWithFormat:@"/shots/%@/comments",[[datadic objectForKey:@"id"] stringValue]] parameters:nil];
+    // http://api.dribbble.com/shots/everyone
+    AFJSONRequestOperation *con = [AFJSONRequestOperation JSONRequestOperationWithRequest:req success:^(NSURLRequest *request, NSHTTPURLResponse *response, id JSON) {
+        commentArray = [JSON objectForKey:@"comments"];
+        DLog(@"%@",commentArray);
+        [self drawComments];
+        //GOP
+    } failure:^(NSURLRequest *request, NSHTTPURLResponse *response, NSError *error, id JSON) {
+        NSLog(@"Failed");
+        //FAIL
+    }];
+    [con start];
+}
+
+-(void)drawComments {
+    float heightpost = artistNameLabel.frame.origin.y+artistNameLabel.frame.size.height+3;
+    for (NSDictionary *comdict in commentArray) {
+        NSDictionary *user = [comdict objectForKey:@"player"];
+        if (!(heightpost == artistNameLabel.frame.origin.y+artistNameLabel.frame.size.height+3 && [[user objectForKey:@"name"] isEqualToString:artistNameLabel.text])) {
+        UILabel *playerLabel = [[UILabel alloc] initWithFrame:CGRectMake(0, heightpost, self.view.frame.size.width, 25)];
+        playerLabel.backgroundColor  = [UIColor colorWithWhite:1 alpha:0.4];
+        playerLabel.textColor = [UIColor blackColor];
+        playerLabel.font = [UIFont boldSystemFontOfSize:12];
+        playerLabel.textAlignment = UITextAlignmentCenter;
+        playerLabel.text = [user objectForKey:@"name"];
+        playerLabel.tag = 999;
+        [containerView_ addSubview:playerLabel];
+        
+        heightpost+= 25+3;
+        }
+        
+        UITextView *commentTextView = [[UITextView alloc] initWithFrame:CGRectMake(0, heightpost, self.view.frame.size.width, 25)];
+        commentTextView.text = [self stringByStrippingHTML:[comdict objectForKey:@"body"]];
+        //CGSize fullsize = [commentTextView.text sizeWithFont:commentTextView.font forWidth:commentTextView.frame.size.width lineBreakMode:UILineBreakModeWordWrap];
+        CGSize fullsize = [commentTextView.text sizeWithFont:commentTextView.font constrainedToSize:CGSizeMake(310, MAXFLOAT) lineBreakMode:UILineBreakModeWordWrap];
+        commentTextView.frame = CGRectMake(0, heightpost-6, self.view.frame.size.width, fullsize.height+10);
+        commentTextView.tag = 999;
+        commentTextView.contentMode = UIViewContentModeTop;
+        commentTextView.textColor = [UIColor whiteColor];
+        commentTextView.backgroundColor = [UIColor clearColor];
+        commentTextView.userInteractionEnabled = NO;
+        [containerView_ addSubview:commentTextView];
+        heightpost+= fullsize.height+5+3;
+    }
+    
+    
+    containerView_.contentSize = CGSizeMake(320, heightpost);
+}
+
 
 - (void)pushPopPressViewWillAnimateToOriginalFrame:(PSPushPopPressView *)pushPopPressView duration:(NSTimeInterval)duration {
     //NSLog(@"pushPopPressViewWillAnimateToOriginalFrame: %@duration: %f", pushPopPressView, duration);

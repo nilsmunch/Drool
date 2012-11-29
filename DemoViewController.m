@@ -12,7 +12,12 @@
 #import "MGLine.h"
 #import "DetailViewController.h"
 #import "PhotoBox.h"
+#import "MGButton.h"
 #import "SCAppDelegate.h"
+#import <QuartzCore/QuartzCore.h>
+
+#define UIColorFromRGB(rgbValue) [UIColor colorWithRed:((float)((rgbValue & 0xFF0000) >> 16))/255.0 green:((float)((rgbValue & 0xFF00) >> 8))/255.0 blue:((float)(rgbValue & 0xFF))/255.0 alpha:1.0]
+
 
 #define TOTAL_IMAGES           10
 #define IPHONE_INITIAL_IMAGES  10
@@ -349,12 +354,41 @@ static int photo = 0;
     [section.topLines addObject:line2];
     
     // animate
+    
+    if (colorGrid == nil) {
+   colorGrid = [MGBox boxWithSize:section.size];
+    colorGrid.contentLayoutMode = MGLayoutGridStyle;
+    [self.scroller.boxes addObject:colorGrid];
+    
+    NSArray *colors = [[NSArray alloc] initWithObjects:[UIColor darkGrayColor],UIColorFromRGB(0x642b0d),UIColorFromRGB(0x266a7a),UIColorFromRGB(0x1d5c5b),UIColorFromRGB(0x102602),UIColorFromRGB(0x1a212b),UIColorFromRGB(0x290300), nil];
+    for (UIColor *color in colors) {
+        
+        MGButton *button = [[MGButton alloc] initWithFrame:CGRectMake(0, 0, 30, 30)];
+        button.backgroundColor = color;
+        button.margin = UIEdgeInsetsMake(5, 5, 5, 5);
+        button.layer.cornerRadius = 15;
+        [button addTarget:self action:@selector(newCorecolor:) forControlEvents:UIControlEventTouchUpInside];
+        [colorGrid.boxes addObject:button];
+    }
+    colorGrid.margin = UIEdgeInsetsMake(20, 20, 15, 15);
+        
+    }
     //table2.size = TABLE_SIZE;
     [table2 layoutWithSpeed:0.3 completion:nil];
     [self.scroller layoutWithSpeed:0.3 completion:nil];
     
     // scroll
     //[self.scroller scrollToView:section withMargin:8];
+}
+
+-(UIColor *)coreColor {
+    return self.scroller.backgroundColor;
+}
+
+-(void)newCorecolor:(MGButton*)sender {
+    [UIView animateWithDuration:1.4 animations:^{
+        self.scroller.backgroundColor = sender.backgroundColor;
+    }];
 }
 
 @end
